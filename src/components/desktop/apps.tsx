@@ -1,7 +1,11 @@
 import { useState, useRef, useEffect } from "react";
 
-export function Notepad() {
-  const [text, setText] = useState("Welcome to Notepad.exe\r\n\r\nType anything here...\r\n\r\nThe internet was a different place in 1998.\r\n");
+export function Notepad({ text: externalText, onChange }: { text?: string; onChange?: (val: string) => void }) {
+  const [internalText, setInternalText] = useState("Welcome to Notepad.exe\r\n\r\nType anything here...\r\n\r\nThe internet was a different place in 1998.\r\n");
+  const isControlled = externalText !== undefined;
+  const text = isControlled ? externalText : internalText;
+  const setText = isControlled && onChange ? onChange : setInternalText;
+
   return (
     <div className="flex flex-col h-full">
       <div className="flex gap-2 px-1 py-0.5 border-b border-[color:var(--border-dark)] text-xs select-none">
