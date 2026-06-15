@@ -1,8 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { Window, type WindowState } from "@/components/desktop/Window";
 import { Notepad, Calculator, AboutMe, Paint, Guestbook, Terminal } from "@/components/desktop/apps";
 import { NetscapeNavigator } from "@/components/desktop/NetscapeNavigator";
+import { Minesweeper } from "@/components/desktop/Minesweeper";
+import { useKonamiCode } from "@/hooks/useKonamiCode";
+import { BSODSystem } from "@/components/desktop/BSODSystem";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -25,6 +28,8 @@ interface AppDef {
   height: number;
 }
 
+// Minesweeper is hidden from the desktop icon grid until unlocked via Konami Code.
+// It lives in ALL_APPS so the window manager can render it when openApp("mines") fires.
 const APPS: AppDef[] = [
   { id: "browser", title: "Netscape Navigator", icon: "🌐", width: 660, height: 520, render: () => <NetscapeNavigator /> },
   { id: "about", title: "Welcome.htm — Netscape", icon: "📄", width: 460, height: 420, render: () => <AboutMe /> },
@@ -33,6 +38,7 @@ const APPS: AppDef[] = [
   { id: "paint", title: "untitled — Paint", icon: "🎨", width: 520, height: 440, render: () => <Paint /> },
   { id: "guestbook", title: "Guestbook.exe", icon: "📖", width: 380, height: 420, render: () => <Guestbook /> },
   { id: "terminal", title: "MS-DOS Prompt", icon: "💻", width: 460, height: 320, render: () => <Terminal /> },
+  { id: "mines", title: "Minesweeper", icon: "💣", width: 360, height: 430, render: () => <Minesweeper /> },
 ];
 
 function Desktop() {
@@ -40,8 +46,14 @@ function Desktop() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [startOpen, setStartOpen] = useState(false);
   const [clock, setClock] = useState("");
+  const [konamiToast, setKonamiToast] = useState(false);
+  const [minesUnlocked, setMinesUnlocked] = useState(false);
   const zRef = useRef(10);
   const openedOnce = useRef(false);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const triggerBSOD = useRef<(() => void) | null>(null);
+  const registerCrash = useCallback((fn: () => void) => { triggerBSOD.current = fn; }, []);
+  const crash = useCallback(() => triggerBSOD.current?.(), []);
 
   useEffect(() => {
     const t = setInterval(() => {
@@ -50,6 +62,20 @@ function Desktop() {
     }, 1000);
     return () => clearInterval(t);
   }, []);
+
+  // ── Konami Code handler ───────────────────────────────────────────────────
+  const onKonami = useCallback(() => {
+    // Show the toast
+    setKonamiToast(true);
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    toastTimerRef.current = setTimeout(() => setKonamiToast(false), 2800);
+    // Unlock the Minesweeper desktop icon
+    setMinesUnlocked(true);
+    // Open the window after a brief dramatic pause
+    setTimeout(() => openApp("mines"), 400);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useKonamiCode(onKonami);
 
   const openApp = (id: string) => {
     setStartOpen(false);
@@ -103,10 +129,11 @@ function Desktop() {
   };
 
   return (
+    <BSODSystem onRegister={registerCrash}>
     <div className="desktop-bg h-screen w-screen relative overflow-hidden font-pixel" onClick={() => setStartOpen(false)}>
-      {/* Desktop icons */}
+      {/* Desktop icons — visible apps + unlocked Minesweeper */}
       <div className="absolute top-2 left-2 grid grid-cols-1 gap-3 p-2">
-        {APPS.map(a => (
+        {APPS.filter(a => a.id !== "mines" || minesUnlocked).map(a => (
           <button
             key={a.id}
             onDoubleClick={() => openApp(a.id)}
@@ -119,6 +146,23 @@ function Desktop() {
           </button>
         ))}
       </div>
+
+      {/* ── Hidden SYSTEM32.exe icon — triggers BSOD ── */}
+      <button
+        onDoubleClick={(e) => { e.stopPropagation(); crash(); }}
+        onClick={(e) => e.stopPropagation()}
+        className="absolute flex flex-col items-center gap-0.5 w-16 p-1 text-white text-[11px] focus:bg-titlebar/40 focus:outline-dotted focus:outline-1 focus:outline-white"
+        style={{
+          bottom: "40px",
+          right: "8px",
+          textShadow: "1px 1px 0 #000",
+          opacity: 0.55,
+        }}
+        title="⚠ Do not open"
+      >
+        <div className="text-2xl leading-none">⚙️</div>
+        <div className="text-center leading-tight break-words">SYSTEM32</div>
+      </button>
 
       {/* Windows */}
       {windows.map(w => {
@@ -151,10 +195,43 @@ function Desktop() {
                 </button>
               ))}
               <div className="border-t border-[color:var(--border-dark)] my-1" />
-              <button className="flex items-center gap-2 w-full px-2 py-1 text-left hover:bg-titlebar hover:text-titlebar-foreground" onClick={() => alert("It is now safe to turn off your computer.")}>
+              <button
+                className="flex items-center gap-2 w-full px-2 py-1 text-left hover:bg-titlebar hover:text-titlebar-foreground"
+                onClick={() => crash()}
+              >
                 <span className="text-base">⏻</span><span>Shut Down...</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Konami Code Toast ── */}
+      {konamiToast && (
+        <div
+          className="absolute top-1/2 left-1/2 z-[99999]"
+          style={{
+            transform: "translate(-50%, -50%)",
+            background: "#000080",
+            color: "#fff",
+            border: "3px outset #c0c0c0",
+            padding: "16px 28px",
+            textAlign: "center",
+            fontFamily: "MS Sans Serif, Tahoma, sans-serif",
+            boxShadow: "4px 4px 0 #000",
+            minWidth: "260px",
+            animation: "konamiPop 0.25s ease-out",
+          }}
+        >
+          <div style={{ fontSize: "28px", marginBottom: "6px" }}>💣</div>
+          <div style={{ fontSize: "14px", fontWeight: "bold", letterSpacing: "1px", marginBottom: "4px" }}>
+            CHEAT CODE ACTIVATED
+          </div>
+          <div style={{ fontSize: "11px", color: "#adf", marginBottom: "8px" }}>
+            ↑↑↓↓←→←→BA
+          </div>
+          <div style={{ fontSize: "12px", color: "#ff0" }}>
+            Minesweeper unlocked! 🎉
           </div>
         </div>
       )}
@@ -183,5 +260,6 @@ function Desktop() {
         </div>
       </div>
     </div>
+    </BSODSystem>
   );
 }
