@@ -1,21 +1,33 @@
 import { useState, useRef, useCallback, KeyboardEvent } from "react";
+import {
+  RETRO_SITE_COMPONENTS, RETRO_SITE_URLS, CATEGORY_POOLS,
+  type RetroSiteId, type CatEntry,
+} from "./RetroSites";
 
 // ─── Route definitions ────────────────────────────────────────────────────────
-type PageKey = "home" | "search" | "links" | "portfolio";
+type PageKey = "home" | "search" | "links" | "portfolio" | `site:${RetroSiteId}`;
 
 const PAGES: Record<string, PageKey> = {
   "C:\\Users\\Home\\index.html": "home",
   "http://www.search98.com": "search",
   "http://webring.net/links": "links",
   "http://portfolio.local/work": "portfolio",
+  // retro site URLs
+  ...Object.fromEntries(
+    Object.entries(RETRO_SITE_URLS).map(([id, url]) => [url, `site:${id}` as PageKey])
+  ),
 };
 
 const PAGE_URLS: Record<PageKey, string> = {
-  home: "C:\\Users\\Home\\index.html",
-  search: "http://www.search98.com",
-  links: "http://webring.net/links",
+  home:      "C:\\Users\\Home\\index.html",
+  search:    "http://www.search98.com",
+  links:     "http://webring.net/links",
   portfolio: "http://portfolio.local/work",
-};
+  // retro site URLs
+  ...Object.fromEntries(
+    Object.entries(RETRO_SITE_URLS).map(([id, url]) => [`site:${id}`, url])
+  ),
+} as Record<PageKey, string>;
 
 
 // ─── Page 1 · Geocities Homepage ─────────────────────────────────────────────
@@ -186,36 +198,52 @@ function GeoHome({ navigate }: { navigate: (p: PageKey) => void }) {
 // ─── Page 2 · Search98 Engine ─────────────────────────────────────────────────
 function SearchPage({ navigate }: { navigate: (p: PageKey) => void }) {
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<null | "shown">(null);
+  const [results, setResults] = useState<null | "shown" | "category">(null);
+  const [activeCat, setActiveCat] = useState<string | null>(null);
+  const [catEntries, setCatEntries] = useState<CatEntry[]>([]);
+
+  const ROW1 = ["Arts", "Business", "Computers", "Games", "Health", "Home"];
+  const ROW2 = ["News", "Recreation", "Reference", "Science", "Shopping", "Society"];
 
   const search = () => {
-    if (query.trim()) setResults("shown");
+    if (query.trim()) { setResults("shown"); setActiveCat(null); }
   };
-
   const lucky = () => navigate("portfolio");
 
+  // Pick a random entry from the category pool and show as a result listing
+  const openCategory = (cat: string) => {
+    const pool = CATEGORY_POOLS[cat] ?? [];
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    setCatEntries(shuffled);
+    setActiveCat(cat);
+    setResults("category");
+  };
+
+  // Render a result row that navigates internally when clicked
+  const ResultRow = ({ entry, urlLabel }: { entry: CatEntry; urlLabel: string }) => (
+    <div style={{ marginBottom: "14px" }}>
+      <div>
+        <button
+          onClick={() => navigate(`site:${entry.id}` as PageKey)}
+          style={{ background: "none", border: "none", color: "#1a0dab", textDecoration: "underline", cursor: "pointer", fontSize: "15px", fontWeight: "bold", padding: 0, textAlign: "left" }}
+        >
+          {entry.label}
+        </button>
+      </div>
+      <div style={{ color: "#006621", fontSize: "11px" }}>{urlLabel}</div>
+      <div style={{ color: "#444", fontSize: "12px", marginTop: "2px" }}>{entry.desc}</div>
+    </div>
+  );
+
+  const internalLinks = [
+    { title: "💼 My Portfolio — Case Studies & Projects", url: "http://portfolio.local/work", desc: "A curated collection of web design and development work.", page: "portfolio" as PageKey },
+    { title: "🔗 Links & Socials — GitHub, LinkedIn, Email", url: "http://webring.net/links", desc: "Connect on GitHub, LinkedIn, Twitter, and more.", page: "links" as PageKey },
+  ];
+
   return (
-    <div
-      style={{
-        minHeight: "100%",
-        background: "#fff",
-        fontFamily: "Times New Roman, serif",
-        padding: "8px",
-        overflowY: "auto",
-      }}
-    >
+    <div style={{ minHeight: "100%", background: "#fff", fontFamily: "Times New Roman, serif", padding: "8px", overflowY: "auto" }}>
       {/* Top nav strip */}
-      <div
-        style={{
-          borderBottom: "1px solid #ccc",
-          paddingBottom: "4px",
-          marginBottom: "12px",
-          display: "flex",
-          gap: "12px",
-          fontSize: "11px",
-          color: "#00c",
-        }}
-      >
+      <div style={{ borderBottom: "1px solid #ccc", paddingBottom: "4px", marginBottom: "12px", display: "flex", gap: "12px", fontSize: "11px", color: "#00c" }}>
         {["Web", "Images", "Groups", "News", "Directory", "More »"].map(l => (
           <span key={l} style={{ cursor: "pointer", textDecoration: "underline" }}>{l}</span>
         ))}
@@ -223,14 +251,269 @@ function SearchPage({ navigate }: { navigate: (p: PageKey) => void }) {
 
       {/* Logo */}
       <div style={{ textAlign: "center", marginBottom: "18px" }}>
-        <div
-          style={{
-            fontSize: "40px",
-            fontWeight: "bold",
-            fontFamily: "Arial Black, sans-serif",
-            lineHeight: 1,
-          }}
-        >
+        <div style={{ fontSize: "40px", fontWeight: "bold", fontFamily: "Arial Black, sans-serif", lineHeight: 1 }}>
+          <span style={{ color: "#3c78d8" }}>S</span><span style={{ color: "#dc3545" }}>e</span>
+          <span style={{ color: "#f4b400" }}>a</span><span style={{ color: "#3c78d8" }}>r</span>
+          <span style={{ color: "#0f9d58" }}>c</span><span style={{ color: "#dc3545" }}>h</span>
+          <span style={{ color: "#3c78d8" }}>9</span><span style={{ color: "#f4b400" }}>8</span>
+        </div>
+        <div style={{ fontSize: "10px", color: "#888", fontFamily: "sans-serif" }}>
+          Searching 3.1 Million Pages on the World Wide Web!
+        </div>
+      </div>
+
+      {/* Search box */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+        <input
+          type="text" value={query}
+          onChange={e => setQuery(e.target.value)}
+          onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && search()}
+          style={{ width: "320px", padding: "4px 6px", border: "1px solid #ccc", fontSize: "14px", fontFamily: "sans-serif", outline: "none" }}
+        />
+        <div style={{ display: "flex", gap: "8px" }}>
+          {(["Search!", "I'm Feeling Lucky"] as const).map(label => (
+            <button key={label} onClick={label === "Search!" ? search : lucky}
+              style={{ background: "#c0c0c0", border: "2px outset #eee", padding: "3px 14px", fontFamily: "sans-serif", fontSize: "12px", cursor: "pointer" }}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Category directory */}
+      {results === null && (
+        <div style={{ textAlign: "center", fontSize: "12px", fontFamily: "sans-serif" }}>
+          {[ROW1, ROW2].map((row, ri) => (
+            <div key={ri} style={{ display: "flex", justifyContent: "center", gap: "24px", marginBottom: "8px" }}>
+              {row.map(cat => (
+                <span key={cat} onClick={() => openCategory(cat)}
+                  style={{ color: "#00c", textDecoration: "underline", cursor: "pointer" }}
+                  title={`${CATEGORY_POOLS[cat]?.length ?? 0} sites`}>
+                  {cat}
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Category results — random retro site from the pool */}
+      {results === "category" && activeCat && (
+        <div style={{ fontFamily: "sans-serif", fontSize: "13px" }}>
+          <div style={{ color: "#444", fontSize: "11px", marginBottom: "10px" }}>
+            <span onClick={() => { setResults(null); setActiveCat(null); }}
+              style={{ color: "#00c", textDecoration: "underline", cursor: "pointer" }}>← Directory</span>
+            {" "}› {activeCat}
+            <span onClick={() => openCategory(activeCat)}
+              style={{ marginLeft: "12px", color: "#00c", textDecoration: "underline", cursor: "pointer", fontSize: "10px" }}>
+              ↻ show others
+            </span>
+          </div>
+          <div style={{ color: "#888", fontSize: "11px", marginBottom: "10px" }}>
+            Search98 found about <b>{catEntries.length * 4291}</b> results for <b>"{activeCat}"</b>
+          </div>
+          <hr style={{ marginBottom: "10px" }} />
+          {catEntries.map(e => (
+            <ResultRow key={e.id} entry={e} urlLabel={RETRO_SITE_URLS[e.id]} />
+          ))}
+          {internalLinks.map(r => (
+            <div key={r.title} style={{ marginBottom: "14px" }}>
+              <button onClick={() => navigate(r.page)}
+                style={{ background: "none", border: "none", color: "#1a0dab", textDecoration: "underline", cursor: "pointer", fontSize: "15px", fontWeight: "bold", padding: 0, textAlign: "left" }}>
+                {r.title}
+              </button>
+              <div style={{ color: "#006621", fontSize: "11px" }}>{r.url}</div>
+              <div style={{ color: "#444", fontSize: "12px", marginTop: "2px" }}>{r.desc}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Generic search results — pick a random category's retro site */}
+      {results === "shown" && (
+        <div style={{ fontFamily: "sans-serif", fontSize: "13px" }}>
+          <div style={{ color: "#444", fontSize: "11px", marginBottom: "8px" }}>
+            <span onClick={() => { setResults(null); setQuery(""); }}
+              style={{ color: "#00c", textDecoration: "underline", cursor: "pointer" }}>← Back</span>
+          </div>
+          <div style={{ color: "#888", fontSize: "11px", marginBottom: "10px" }}>
+            Search98 found about <b>{Math.floor(Math.random() * 9000) + 1000}</b> results for <b>"{query}"</b> (0.{Math.floor(Math.random() * 89) + 10} seconds)
+          </div>
+          <hr style={{ marginBottom: "10px" }} />
+          {Object.values(CATEGORY_POOLS).flat().sort(() => Math.random() - 0.5).slice(0, 3).map(e => (
+            <ResultRow key={e.id} entry={e} urlLabel={RETRO_SITE_URLS[e.id]} />
+          ))}
+          {internalLinks.map(r => (
+            <div key={r.title} style={{ marginBottom: "14px" }}>
+              <button onClick={() => navigate(r.page)}
+                style={{ background: "none", border: "none", color: "#1a0dab", textDecoration: "underline", cursor: "pointer", fontSize: "15px", fontWeight: "bold", padding: 0, textAlign: "left" }}>
+                {r.title}
+              </button>
+              <div style={{ color: "#006621", fontSize: "11px" }}>{r.url}</div>
+              <div style={{ color: "#444", fontSize: "12px", marginTop: "2px" }}>{r.desc}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Footer */}
+      <div style={{ borderTop: "1px solid #ccc", marginTop: "16px", paddingTop: "6px", textAlign: "center", fontSize: "10px", color: "#888", fontFamily: "sans-serif" }}>
+        ©1998 Search98 Inc. · Advertising · About · Privacy
+      </div>
+    </div>
+  );
+}
+
+
+const CATEGORY_SITES: Record<string, SiteEntry[]> = {
+  Arts: [
+    { title: "Web Museum — Famous Paintings Online", url: "https://www.wga.hu", desc: "The Web Gallery of Art — thousands of European paintings from the 8th–19th century, fully searchable." },
+    { title: "The Louvre — Collections Online", url: "https://collections.louvre.fr/en", desc: "Browse 480,000 artworks from the Musée du Louvre directly in your browser. Free access." },
+    { title: "DeviantArt — Online Art Community", url: "https://www.deviantart.com", desc: "The world's largest online art community. Share and discover digital and traditional artwork." },
+  ],
+  Business: [
+    { title: "Yahoo! Finance — Stock Quotes & News", url: "https://finance.yahoo.com", desc: "Real-time stock quotes, business news, financial data and portfolio management tools." },
+    { title: "Inc. Magazine — Small Business Resources", url: "https://www.inc.com", desc: "Advice, tips, and resources for entrepreneurs and small business owners." },
+    { title: "Entrepreneur.com — Start Your Business", url: "https://www.entrepreneur.com", desc: "Startup ideas, franchise info, business plans and marketing strategies for 1998 and beyond." },
+  ],
+  Computers: [
+    { title: "Slashdot — News for Nerds", url: "https://slashdot.org", desc: "News for nerds, stuff that matters. Technology and open-source software discussion since 1997." },
+    { title: "HowStuffWorks — Technology Explained", url: "https://computer.howstuffworks.com", desc: "Plain-English explanations of how computers, the internet, and technology actually work." },
+    { title: "W3Schools — Web Tutorials", url: "https://www.w3schools.com", desc: "HTML, CSS, JavaScript, and web development tutorials. The beginner's guide to building websites." },
+  ],
+  Games: [
+    { title: "GameFAQs — Game Guides & Cheats", url: "https://www.gamefaqs.com", desc: "Walkthroughs, FAQs, and cheat codes for thousands of games across all platforms." },
+    { title: "IGN — Video Game News & Reviews", url: "https://www.ign.com", desc: "The latest video game reviews, previews, cheats, trailers, and news from IGN." },
+    { title: "Miniclip — Free Online Games", url: "https://www.miniclip.com", desc: "Play hundreds of free online games directly in your browser. No download required." },
+  ],
+  Health: [
+    { title: "WebMD — Medical Information", url: "https://www.webmd.com", desc: "Trusted medical information, symptom checkers, drug reference, and health news." },
+    { title: "NIH — National Institutes of Health", url: "https://www.nih.gov", desc: "Official U.S. government health information from the National Institutes of Health." },
+    { title: "Mayo Clinic — Patient Care & Health Info", url: "https://www.mayoclinic.org", desc: "Expert, reliable health and medical information from one of America's top hospitals." },
+  ],
+  Home: [
+    { title: "This Old House — Home Improvement", url: "https://www.thisoldhouse.com", desc: "Expert advice on home improvement, remodeling, gardening, and home maintenance." },
+    { title: "Better Homes & Gardens", url: "https://www.bhg.com", desc: "Ideas and inspiration for home décor, recipes, crafts, gardening, and entertaining." },
+    { title: "Apartment Therapy — Home Design", url: "https://www.apartmenttherapy.com", desc: "Small-space living, budget decorating, and home tours from real people's homes." },
+  ],
+  News: [
+    { title: "BBC News Online — World Service", url: "https://www.bbc.com/news", desc: "International news coverage from the British Broadcasting Corporation." },
+    { title: "Reuters — Breaking News", url: "https://www.reuters.com", desc: "Real-time international news from Reuters wire service. Business, politics, world events." },
+    { title: "The Guardian — News & Opinion", url: "https://www.theguardian.com", desc: "Independent journalism covering world news, politics, technology, sport and culture." },
+  ],
+  Recreation: [
+    { title: "AllTrails — Hiking & Outdoor Maps", url: "https://www.alltrails.com", desc: "Find trails for hiking, biking, and running. Trail maps, photos, and reviews." },
+    { title: "REI — Outdoor Gear & Adventures", url: "https://www.rei.com", desc: "Outdoor gear, clothing, and expert advice for hiking, camping, climbing, and more." },
+    { title: "Roadtrippers — Trip Planning", url: "https://roadtrippers.com", desc: "Plan the perfect road trip with points of interest, campgrounds, and weird roadside attractions." },
+  ],
+  Reference: [
+    { title: "Wikipedia — The Free Encyclopedia", url: "https://en.wikipedia.org", desc: "The world's largest free encyclopedia. Over 6 million articles in English." },
+    { title: "Merriam-Webster — Dictionary & Thesaurus", url: "https://www.merriam-webster.com", desc: "America's most trusted dictionary since 1828. Word definitions, synonyms, and etymology." },
+    { title: "Bartleby — Classic Literature & Reference", url: "https://www.bartleby.com", desc: "Free access to classic literature, poetry, quotations, encyclopedias and reference books." },
+  ],
+  Science: [
+    { title: "NASA — Space Science & Exploration", url: "https://www.nasa.gov", desc: "Space exploration news, missions, astronomy images, and scientific research from NASA." },
+    { title: "National Geographic — Science & Nature", url: "https://www.nationalgeographic.com", desc: "Photography, science, exploration, and stories about our world from National Geographic." },
+    { title: "New Scientist — Science News", url: "https://www.newscientist.com", desc: "The latest science and technology news, analysis and expert comment from New Scientist." },
+  ],
+  Shopping: [
+    { title: "Amazon.com — Books, Music & More", url: "https://www.amazon.com", desc: "Earth's biggest selection of books, CDs, videos, DVDs, toys, electronics and more." },
+    { title: "eBay — Person-to-Person Auction Site", url: "https://www.ebay.com", desc: "Buy and sell anything! Collectibles, electronics, antiques, or just about anything else." },
+    { title: "PriceWatch — Lowest PC Prices", url: "https://www.pricewatch.com", desc: "Compare prices on computer hardware, software, and electronics from hundreds of merchants." },
+  ],
+  Society: [
+    { title: "MoveOn — Online Political Action", url: "https://www.moveon.org", desc: "Grassroots political action, petitions, and civic engagement tools for everyone." },
+    { title: "Amnesty International", url: "https://www.amnesty.org", desc: "Human rights news, campaigns and actions from Amnesty International." },
+    { title: "United Nations — Official Site", url: "https://www.un.org", desc: "International peace and security, humanitarian aid, and sustainable development from the UN." },
+  ],
+};
+
+function pickRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function SearchPage({ navigate }: { navigate: (p: PageKey) => void }) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<null | "shown" | "category">(null);
+  const [activeCat, setActiveCat] = useState<string | null>(null);
+  const [catSites, setCatSites] = useState<SiteEntry[]>([]);
+
+  const search = () => {
+    if (query.trim()) { setResults("shown"); setActiveCat(null); }
+  };
+
+  const lucky = () => navigate("portfolio");
+
+  const openCategory = (cat: string) => {
+    const pool = CATEGORY_SITES[cat];
+    // Pick 2 random unique entries to show as results
+    const shuffled = [...pool].sort(() => Math.random() - 0.5);
+    setCatSites(shuffled.slice(0, 2));
+    setActiveCat(cat);
+    setResults("category");
+  };
+
+  const ROW1 = ["Arts", "Business", "Computers", "Games", "Health", "Home"];
+  const ROW2 = ["News", "Recreation", "Reference", "Science", "Shopping", "Society"];
+
+  const resultBlock = (sites: SiteEntry[], label: string, count: number) => (
+    <div style={{ fontFamily: "sans-serif", fontSize: "13px" }}>
+      <div style={{ color: "#888", fontSize: "11px", marginBottom: "10px" }}>
+        Search98 found about <b>{count}</b> results for <b>"{label}"</b> (0.{Math.floor(Math.random() * 89) + 10} seconds)
+      </div>
+      <hr style={{ marginBottom: "10px" }} />
+      {sites.map(r => (
+        <div key={r.url + r.title} style={{ marginBottom: "14px" }}>
+          <div>
+            <a
+              href={r.url}
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                color: "#1a0dab",
+                textDecoration: "underline",
+                fontSize: "15px",
+                fontWeight: "bold",
+              }}
+            >
+              {r.title}
+            </a>
+          </div>
+          <div style={{ color: "#006621", fontSize: "11px" }}>{r.url}</div>
+          <div style={{ color: "#444", fontSize: "12px", marginTop: "2px" }}>{r.desc}</div>
+        </div>
+      ))}
+      {/* internal portfolio links always appended */}
+      {[
+        { title: "💼 My Portfolio — Case Studies & Projects", url: "http://portfolio.local/work", desc: "A curated collection of web design and development work.", page: "portfolio" as PageKey },
+        { title: "🔗 Links & Socials — GitHub, LinkedIn, Email", url: "http://webring.net/links", desc: "Connect on GitHub, LinkedIn, Twitter, and more.", page: "links" as PageKey },
+      ].map(r => (
+        <div key={r.title} style={{ marginBottom: "14px" }}>
+          <button
+            onClick={() => navigate(r.page)}
+            style={{ background: "none", border: "none", color: "#1a0dab", textDecoration: "underline", cursor: "pointer", fontSize: "15px", fontWeight: "bold", padding: 0, textAlign: "left" }}
+          >
+            {r.title}
+          </button>
+          <div style={{ color: "#006621", fontSize: "11px" }}>{r.url}</div>
+          <div style={{ color: "#444", fontSize: "12px", marginTop: "2px" }}>{r.desc}</div>
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <div style={{ minHeight: "100%", background: "#fff", fontFamily: "Times New Roman, serif", padding: "8px", overflowY: "auto" }}>
+      {/* Top nav strip */}
+      <div style={{ borderBottom: "1px solid #ccc", paddingBottom: "4px", marginBottom: "12px", display: "flex", gap: "12px", fontSize: "11px", color: "#00c" }}>
+        {["Web", "Images", "Groups", "News", "Directory", "More »"].map(l => (
+          <span key={l} style={{ cursor: "pointer", textDecoration: "underline" }}>{l}</span>
+        ))}
+      </div>
+
+      {/* Logo */}
+      <div style={{ textAlign: "center", marginBottom: "18px" }}>
+        <div style={{ fontSize: "40px", fontWeight: "bold", fontFamily: "Arial Black, sans-serif", lineHeight: 1 }}>
           <span style={{ color: "#3c78d8" }}>S</span>
           <span style={{ color: "#dc3545" }}>e</span>
           <span style={{ color: "#f4b400" }}>a</span>
@@ -252,29 +535,14 @@ function SearchPage({ navigate }: { navigate: (p: PageKey) => void }) {
           value={query}
           onChange={e => setQuery(e.target.value)}
           onKeyDown={(e: KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && search()}
-          style={{
-            width: "320px",
-            padding: "4px 6px",
-            border: "1px solid #ccc",
-            fontSize: "14px",
-            fontFamily: "sans-serif",
-            outline: "none",
-          }}
-          placeholder=""
+          style={{ width: "320px", padding: "4px 6px", border: "1px solid #ccc", fontSize: "14px", fontFamily: "sans-serif", outline: "none" }}
         />
         <div style={{ display: "flex", gap: "8px" }}>
           {(["Search!", "I'm Feeling Lucky"] as const).map(label => (
             <button
               key={label}
               onClick={label === "Search!" ? search : lucky}
-              style={{
-                background: "#c0c0c0",
-                border: "2px outset #eee",
-                padding: "3px 14px",
-                fontFamily: "sans-serif",
-                fontSize: "12px",
-                cursor: "pointer",
-              }}
+              style={{ background: "#c0c0c0", border: "2px outset #eee", padding: "3px 14px", fontFamily: "sans-serif", fontSize: "12px", cursor: "pointer" }}
             >
               {label}
             </button>
@@ -282,78 +550,65 @@ function SearchPage({ navigate }: { navigate: (p: PageKey) => void }) {
         </div>
       </div>
 
-      {/* Category links */}
+      {/* Category directory — always visible when no search results */}
       {results === null && (
         <div style={{ textAlign: "center", fontSize: "12px", fontFamily: "sans-serif" }}>
-          <div style={{ display: "flex", justifyContent: "center", gap: "24px", marginBottom: "8px" }}>
-            {["Arts", "Business", "Computers", "Games", "Health", "Home"].map(c => (
-              <span key={c} style={{ color: "#00c", textDecoration: "underline", cursor: "pointer" }}>{c}</span>
-            ))}
-          </div>
-          <div style={{ display: "flex", justifyContent: "center", gap: "24px" }}>
-            {["News", "Recreation", "Reference", "Science", "Shopping", "Society"].map(c => (
-              <span key={c} style={{ color: "#00c", textDecoration: "underline", cursor: "pointer" }}>{c}</span>
-            ))}
-          </div>
+          {[ROW1, ROW2].map((row, ri) => (
+            <div key={ri} style={{ display: "flex", justifyContent: "center", gap: "24px", marginBottom: "8px" }}>
+              {row.map(cat => (
+                <span
+                  key={cat}
+                  onClick={() => openCategory(cat)}
+                  style={{ color: "#00c", textDecoration: "underline", cursor: "pointer" }}
+                  title={`${CATEGORY_SITES[cat].length} sites`}
+                >
+                  {cat}
+                </span>
+              ))}
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Results */}
-      {results === "shown" && (
-        <div style={{ fontFamily: "sans-serif", fontSize: "13px" }}>
-          <div style={{ color: "#888", fontSize: "11px", marginBottom: "10px" }}>
-            Search98 found about <b>4</b> results for <b>"{query}"</b> (0.31 seconds)
+      {/* Category results */}
+      {results === "category" && activeCat && (
+        <div>
+          <div style={{ fontFamily: "sans-serif", fontSize: "11px", marginBottom: "10px", color: "#444" }}>
+            <span
+              onClick={() => { setResults(null); setActiveCat(null); }}
+              style={{ color: "#00c", textDecoration: "underline", cursor: "pointer" }}
+            >
+              ← Directory
+            </span>
+            {" "}&rsaquo; {activeCat}
+            <span
+              onClick={() => openCategory(activeCat)}
+              style={{ marginLeft: "12px", color: "#00c", textDecoration: "underline", cursor: "pointer", fontSize: "10px" }}
+              title="Pick different sites"
+            >
+              ↻ show others
+            </span>
           </div>
-          <hr style={{ marginBottom: "10px" }} />
-          {([
-            {
-              title: "💼 My Portfolio — Case Studies & Projects",
-              url: "http://portfolio.local/work",
-              desc: "A curated collection of web design and development projects. Includes case studies, screenshots, and technical details.",
-              page: "portfolio" as PageKey,
-            },
-            {
-              title: "📝 Resume / CV — Skills & Experience",
-              url: "http://portfolio.local/work",
-              desc: "Frontend developer with expertise in HTML, CSS, JavaScript, and modern frameworks. Available for hire.",
-              page: "portfolio" as PageKey,
-            },
-            {
-              title: "🔗 Links & Socials — GitHub, LinkedIn, Email",
-              url: "http://webring.net/links",
-              desc: "Connect on GitHub, LinkedIn, Twitter, and more. 88x31 badges included.",
-              page: "links" as PageKey,
-            },
-            {
-              title: "🏠 Homepage — Welcome to My Corner of the Web",
-              url: "C:\\Users\\Home\\index.html",
-              desc: "Personal homepage. Guestbook, about me, and more. Under construction since 1997.",
-              page: "home" as PageKey,
-            },
-          ]).map(r => (
-            <div key={r.title} style={{ marginBottom: "14px" }}>
-              <div>
-                <button
-                  onClick={() => navigate(r.page)}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    color: "#1a0dab",
-                    textDecoration: "underline",
-                    cursor: "pointer",
-                    fontSize: "15px",
-                    fontWeight: "bold",
-                    padding: 0,
-                    textAlign: "left",
-                  }}
-                >
-                  {r.title}
-                </button>
-              </div>
-              <div style={{ color: "#006621", fontSize: "11px" }}>{r.url}</div>
-              <div style={{ color: "#444", fontSize: "12px", marginTop: "2px" }}>{r.desc}</div>
-            </div>
-          ))}
+          {resultBlock(catSites, activeCat, CATEGORY_SITES[activeCat].length * 3412)}
+        </div>
+      )}
+
+      {/* Search results */}
+      {results === "shown" && (
+        <div>
+          <div style={{ fontFamily: "sans-serif", fontSize: "11px", marginBottom: "10px", color: "#444" }}>
+            <span
+              onClick={() => { setResults(null); setQuery(""); }}
+              style={{ color: "#00c", textDecoration: "underline", cursor: "pointer" }}
+            >
+              ← Back
+            </span>
+          </div>
+          {resultBlock(
+            pickRandom(Object.values(CATEGORY_SITES)).slice(0, 2),
+            query,
+            Math.floor(Math.random() * 900) + 100,
+          )}
         </div>
       )}
 
@@ -364,6 +619,7 @@ function SearchPage({ navigate }: { navigate: (p: PageKey) => void }) {
     </div>
   );
 }
+
 
 // ─── Page 3 · Webring Links Page ─────────────────────────────────────────────
 const BADGE_STYLE: React.CSSProperties = {
@@ -1015,6 +1271,11 @@ export function NetscapeNavigator() {
         {currentPage === "search" && <SearchPage navigate={navigateTo} />}
         {currentPage === "links" && <LinksPage />}
         {currentPage === "portfolio" && <PortfolioPage />}
+        {currentPage.startsWith("site:") && (() => {
+          const siteId = currentPage.slice(5) as RetroSiteId;
+          const Renderer = RETRO_SITE_COMPONENTS[siteId];
+          return Renderer ? <Renderer /> : <div style={{ padding: 12 }}>404 — Page not found.</div>;
+        })()}
       </div>
 
       {/* ── Status bar ── */}
