@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Window, type WindowState } from "@/components/desktop/Window";
 import { Notepad, Calculator, AboutMe, Paint, Guestbook, Terminal } from "@/components/desktop/apps";
+import { NetscapeNavigator } from "@/components/desktop/NetscapeNavigator";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -25,7 +26,8 @@ interface AppDef {
 }
 
 const APPS: AppDef[] = [
-  { id: "about", title: "Welcome.htm — Netscape", icon: "🌐", width: 460, height: 420, render: () => <AboutMe /> },
+  { id: "browser", title: "Netscape Navigator", icon: "🌐", width: 660, height: 520, render: () => <NetscapeNavigator /> },
+  { id: "about", title: "Welcome.htm — Netscape", icon: "📄", width: 460, height: 420, render: () => <AboutMe /> },
   { id: "notepad", title: "Untitled — Notepad", icon: "📝", width: 420, height: 320, render: () => <Notepad /> },
   { id: "calc", title: "Calculator", icon: "🧮", width: 220, height: 280, render: () => <Calculator /> },
   { id: "paint", title: "untitled — Paint", icon: "🎨", width: 520, height: 440, render: () => <Paint /> },
@@ -74,7 +76,7 @@ function Desktop() {
   useEffect(() => {
     if (openedOnce.current) return;
     openedOnce.current = true;
-    openApp("about");
+    openApp("browser");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
